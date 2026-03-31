@@ -136,6 +136,55 @@
       color: #fafafa;
     }
 
+    /* ── Osscar nav badge (top-right) ── */
+    .osscar-nav {
+      position: fixed;
+      top: 20px;
+      left: 24px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      cursor: default;
+    }
+
+    .osscar-stack {
+      position: relative;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .osscar-img {
+      height: 100%;
+      width: auto;
+      transition: opacity 1.4s ease;
+    }
+
+    .osscar-amber {
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 0;
+    }
+
+    .osscar-white { opacity: 0.5; }
+
+    .osscar-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.4);
+      transition: color 1.4s ease;
+    }
+
+    #osscarIcon.explorer .osscar-amber { opacity: 1; }
+    #osscarIcon.explorer .osscar-white { opacity: 0; }
+    #osscarIcon.explorer .osscar-label { color: #F59E0B; }
+
     .separator {
       font-family: 'Inter', sans-serif;
       font-size: 15px;
@@ -261,30 +310,30 @@
       display: none;
     }
 
-    /* ── Insider mode (all icons discovered) ── */
+    /* ── Explorer mode (all icons discovered) ── */
     /* Terminal amber: #c9952a */
-    .email-form.insider .email-btn {
+    .email-form.explorer .email-btn {
       background: rgba(201, 149, 42, 0.12);
       border-color: rgba(201, 149, 42, 0.35);
       color: #fff;
       font-weight: 500;
-      animation: insiderPulse 4s ease-in-out infinite;
+      animation: explorerPulse 4s ease-in-out infinite;
     }
 
-    .email-form.insider .email-btn:hover {
+    .email-form.explorer .email-btn:hover {
       background: rgba(201, 149, 42, 0.22);
       border-color: rgba(201, 149, 42, 0.5);
     }
 
-    .email-form.insider .email-input {
+    .email-form.explorer .email-input {
       border-color: rgba(201, 149, 42, 0.2);
     }
 
-    .email-form.insider .email-input:focus {
+    .email-form.explorer .email-input:focus {
       border-color: rgba(201, 149, 42, 0.35);
     }
 
-    @keyframes insiderPulse {
+    @keyframes explorerPulse {
       0%, 100% { box-shadow: 0 0 0 0 transparent; }
       50% { box-shadow: 0 0 20px rgba(201, 149, 42, 0.08); }
     }
@@ -361,8 +410,8 @@
     }
 
     .loader-track {
-      width: 80px;
-      height: 8px;
+      width: 110px;
+      height: 10px;
       border: 1px solid #333;
       background: #111;
       position: relative;
@@ -417,6 +466,15 @@
 </head>
 <body>
   <canvas id="pixelBugs"></canvas>
+
+  <!-- Osscar nav badge -->
+  <div class="osscar-nav" id="osscarIcon">
+    <div class="osscar-stack">
+      <img class="osscar-img osscar-white" src="oscar-white.png" alt="Osscar">
+      <img class="osscar-img osscar-amber" src="oscar-amber.png" alt="">
+    </div>
+    <span class="osscar-label">Osscar</span>
+  </div>
 
   <div class="container">
     <!-- Logos: Supabase x >commit -->
@@ -487,7 +545,8 @@
     const ctx = canvas.getContext('2d');
     let W, H;
 
-    const SZ = 32;
+    const SZ = 40;
+    const PERSIST_ALPHA = 0.3;
     const dpr = window.devicePixelRatio || 1;
     const spots = [];
     let initialized = false;
@@ -527,13 +586,13 @@
     ];
 
     // Render icon to offscreen canvas — sync for path, async for image
-    function renderIcon(icon) {
+    function renderIcon(icon, color = '#666666') {
       if (icon.d) {
         const off = document.createElement('canvas');
         off.width = SZ * dpr; off.height = SZ * dpr;
         const c = off.getContext('2d');
         c.scale((SZ / icon.vb) * dpr, (SZ / icon.vb) * dpr);
-        c.fillStyle = '#666666';
+        c.fillStyle = color;
         c.fill(new Path2D(icon.d));
         return Promise.resolve(off);
       } else if (icon.src) {
@@ -576,31 +635,45 @@
       return pixels;
     }
 
-    // ── Place 5 icons in random positions across 5 zones, avoiding center ──
-    // Zones: top-left, top-right, left-mid, right-mid, bottom
+    // ── 6 zones: one per icon, avoids Osscar nav (top-left) and center UI ──
+    // Center UI occupies roughly 25–75% x, 15–85% y — kept clear.
+    // Top-left (0–22% x, 0–25% y) also kept clear for the Osscar nav badge.
     const ZONES = [
-      { xMin: 0.05, xMax: 0.3, yMin: 0.08, yMax: 0.35 },  // top-left
-      { xMin: 0.7,  xMax: 0.95, yMin: 0.08, yMax: 0.35 },  // top-right
-      { xMin: 0.03, xMax: 0.25, yMin: 0.6, yMax: 0.88 },   // bottom-left
-      { xMin: 0.75, xMax: 0.97, yMin: 0.6, yMax: 0.88 },   // bottom-right
-      { xMin: 0.35, xMax: 0.65, yMin: 0.82, yMax: 0.95 },  // bottom-center
-      { xMin: 0.4,  xMax: 0.6,  yMin: 0.05, yMax: 0.2 },   // top-center
+      { xMin: 0.26, xMax: 0.74, yMin: 0.04, yMax: 0.16 },  // top-center   (above UI)
+      { xMin: 0.78, xMax: 0.96, yMin: 0.04, yMax: 0.34 },  // top-right
+      { xMin: 0.02, xMax: 0.20, yMin: 0.28, yMax: 0.58 },  // left-mid
+      { xMin: 0.80, xMax: 0.97, yMin: 0.38, yMax: 0.68 },  // right-mid
+      { xMin: 0.02, xMax: 0.22, yMin: 0.65, yMax: 0.90 },  // bottom-left
+      { xMin: 0.28, xMax: 0.72, yMin: 0.84, yMax: 0.96 },  // bottom-center
     ];
+
+    // Minimum pixel distance between any two icon centres
+    const MIN_ICON_DIST = SZ * 3.5;
 
     async function placeIcons() {
       spots.length = 0;
-      // Shuffle zones for random assignment
+      // Each icon gets its own zone (shuffle so assignment varies per load)
       const shuffled = [...ZONES].sort(() => Math.random() - 0.5);
       for (let i = 0; i < ICONS.length; i++) {
-        const z = shuffled[i % shuffled.length];
-        const fx = z.xMin + Math.random() * (z.xMax - z.xMin);
-        const fy = z.yMin + Math.random() * (z.yMax - z.yMin);
+        const z = shuffled[i];
+        // Retry up to 25 times to satisfy min-distance from already-placed icons
+        let px, py, attempts = 0;
+        do {
+          px = Math.floor(W * (z.xMin + Math.random() * (z.xMax - z.xMin)) - SZ / 2);
+          py = Math.floor(H * (z.yMin + Math.random() * (z.yMax - z.yMin)) - SZ / 2);
+          attempts++;
+        } while (
+          attempts < 25 &&
+          spots.some(s => Math.hypot(s.x - px, s.y - py) < MIN_ICON_DIST)
+        );
         const offscreen = await renderIcon(ICONS[i]);
+        const amberOffscreen = await renderIcon(ICONS[i], '#F59E0B');
         const pixels = getIconPixels(offscreen);
         spots.push({
-          x: Math.floor(W * fx - SZ / 2),
-          y: Math.floor(H * fy - SZ / 2),
+          x: px,
+          y: py,
           offscreen,
+          amberOffscreen,
           pixels,
           reveal: 0,
           targetReveal: 0,
@@ -634,7 +707,7 @@
     let baitStartTime = 0;
     let baitCooldown = 0;
     let discoveredCount = 0;
-    const IDLE_BEFORE_FIRST_BAIT = 5000; // 5s idle before very first bait
+    const IDLE_BEFORE_FIRST_BAIT = 2000; // 2s idle before very first bait
     const BAIT_AFTER_DISCOVERY = 3000;   // 3s after discovering one → bait next
     const BAIT_RAMP = 1500;
     const BAIT_MAX = 0.35;
@@ -737,23 +810,10 @@
           continue; // skip normal rendering for bait-only mode
         }
 
-        // ── Discovered icon: pulsing white dot when idle, re-reveal on hover ──
+        // ── Discovered icon: persistent render at idle ──
         if (spot.discovered && spot.targetReveal < 0.05) {
-          // Draw pulsing white dot at icon center
-          const dotX = spot.x + SZ / 2;
-          const dotY = spot.y + SZ / 2;
-          const pulse = 0.3 + 0.25 * Math.sin(now() / 800 + si * 1.5);
-          ctx.beginPath();
-          ctx.arc(dotX, dotY, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = insiderUnlocked ? '#c9952a' : '#fff';
-          ctx.globalAlpha = pulse;
-          ctx.fill();
-
-          // Fade out the reveal smoothly when leaving
-          if (spot.reveal > 0.005) {
-            ctx.globalAlpha = spot.reveal * 0.5;
-            ctx.drawImage(spot.offscreen, spot.x, spot.y, SZ, SZ);
-          }
+          ctx.globalAlpha = PERSIST_ALPHA;
+          ctx.drawImage(explorerUnlocked ? spot.amberOffscreen : spot.offscreen, spot.x, spot.y, SZ, SZ);
           continue;
         }
 
@@ -782,7 +842,7 @@
               if (Math.random() > rev * 1.5) continue;
             }
 
-            ctx.fillStyle = '#555555';
+            ctx.fillStyle = explorerUnlocked ? '#F59E0B' : '#555555';
             ctx.globalAlpha = Math.min(1, rev * 2) * px.a * pixelFade;
             ctx.fillRect(Math.floor(drawX), Math.floor(drawY), 2, 2);
           }
@@ -791,7 +851,7 @@
         // Clean SVG layer
         if (cleanFade > 0.01) {
           ctx.globalAlpha = cleanFade;
-          ctx.drawImage(spot.offscreen, spot.x, spot.y, SZ, SZ);
+          ctx.drawImage(explorerUnlocked ? spot.amberOffscreen : spot.offscreen, spot.x, spot.y, SZ, SZ);
         }
       }
 
@@ -825,12 +885,12 @@
     const LS = {
       hasSubmitted: () => localStorage.getItem('oss-index-submitted') === 'true',
       getEmail:     () => localStorage.getItem('oss-index-email') || '',
-      isInsider:    () => localStorage.getItem('oss-index-insider') === 'true',
+      isExplorer:    () => localStorage.getItem('oss-index-explorer') === 'true',
       markSubmitted: (email) => {
         localStorage.setItem('oss-index-submitted', 'true');
         localStorage.setItem('oss-index-email', email);
       },
-      markInsider: () => localStorage.setItem('oss-index-insider', 'true'),
+      markExplorer: () => localStorage.setItem('oss-index-explorer', 'true'),
     };
 
     const $ = id => document.getElementById(id);
@@ -850,7 +910,7 @@
 
     // Helper: show the form in a specific mode
     function showForm(mode) {
-      form.classList.remove('hidden', 'insider', 'upgrade-only');
+      form.classList.remove('hidden', 'explorer', 'upgrade-only');
       success.classList.remove('show');
       success.style.display = 'none';
       form.style.display = '';
@@ -860,16 +920,16 @@
         input.style.display = '';
         input.required = true;
         btn.textContent = 'notify me';
-      } else if (mode === 'insider') {
-        form.classList.add('insider');
+      } else if (mode === 'explorer') {
+        form.classList.add('explorer');
         input.style.display = '';
         input.required = true;
-        btn.textContent = 'I want in';
+        btn.textContent = 'explorer access';
       } else if (mode === 'upgrade') {
-        form.classList.add('insider', 'upgrade-only');
+        form.classList.add('explorer', 'upgrade-only');
         input.style.display = 'none';
         input.required = false; // critical: skip HTML validation
-        btn.textContent = 'upgrade me';
+        btn.textContent = 'explorer access';
       }
     }
 
@@ -878,7 +938,7 @@
     const loaderFill = $('loaderFill');
     const loaderPct  = $('loaderPct');
     let loaderShown = false;
-    let insiderUnlocked = false;
+    let explorerUnlocked = false;
 
     function updateLoader() {
       const discovered = spots.filter(s => s.discovered).length;
@@ -892,10 +952,13 @@
       loaderFill.style.width = (discovered / total * 100) + '%';
       loaderPct.textContent = discovered + '/' + total;
 
-      // ── All 6 found: unlock insider ──
-      if (discovered === total && !insiderUnlocked) {
-        insiderUnlocked = true;
-        LS.markInsider();
+      // ── All 6 found: unlock explorer ──
+      if (discovered === total && !explorerUnlocked) {
+        explorerUnlocked = true;
+        LS.markExplorer();
+
+        // Osscar → amber
+        $('osscarIcon').classList.add('explorer');
 
         // Loader → amber
         loaderFill.style.background = '#c9952a';
@@ -908,17 +971,18 @@
           // Already on waitlist → just show upgrade button (no email needed)
           showForm('upgrade');
         } else {
-          // Never submitted → full insider form
-          showForm('insider');
+          // Never submitted → full explorer form
+          showForm('explorer');
         }
       }
     }
 
     // ── Restore state on page load ──
     (function restoreState() {
-      if (LS.isInsider()) {
+      if (LS.isExplorer()) {
         // Show loader bar fully filled in amber — instant, no animation
-        insiderUnlocked = true;
+        explorerUnlocked = true;
+        $('osscarIcon').classList.add('explorer');
         loaderShown = true;
         // Disable transitions for instant display
         loaderBar.style.transition = 'none';
@@ -932,12 +996,12 @@
         document.querySelector('.loader-label').style.color = 'rgba(201, 149, 42, 0.6)';
       }
 
-      if (LS.isInsider() && LS.hasSubmitted()) {
-        showMessage('you are an insider', AMBER);
-        // Instant — no fade-in for returning insiders
+      if (LS.isExplorer() && LS.hasSubmitted()) {
+        showMessage('you are an explorer', AMBER);
+        // Instant — no fade-in for returning explorers
         success.style.transition = 'none';
-      } else if (LS.isInsider() && !LS.hasSubmitted()) {
-        showForm('insider');
+      } else if (LS.isExplorer() && !LS.hasSubmitted()) {
+        showForm('explorer');
       } else if (LS.hasSubmitted()) {
         showMessage('you are on the list');
       }
@@ -979,8 +1043,8 @@
       const email = isUpgrade ? LS.getEmail() : input.value;
 
       if (!email) {
-        // Edge case: upgrade mode but no stored email → show full insider form
-        showForm('insider');
+        // Edge case: upgrade mode but no stored email → show full explorer form
+        showForm('explorer');
         return;
       }
 
@@ -994,25 +1058,23 @@
       try {
         const formData = new URLSearchParams();
         formData.append('email', email);
-        if (insiderUnlocked) formData.append('insider', 'true');
+        if (explorerUnlocked) formData.append('insider', 'true');
         await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: formData });
 
         LS.markSubmitted(email);
-        if (insiderUnlocked) LS.markInsider();
-        if (window.posthog) posthog.capture('email_submitted', { insider: insiderUnlocked, upgrade: form.classList.contains('upgrade-only') });
+        if (explorerUnlocked) LS.markExplorer();
+        if (window.posthog) posthog.capture('email_submitted', { insider: explorerUnlocked, upgrade: form.classList.contains('upgrade-only') });
 
         // ── Confirmation message ──
-        if (insiderUnlocked) {
-          // Both upgrade and first-time insider get the same gold message
-          showMessage('gg, you are now an insider', AMBER);
+        if (explorerUnlocked) {
+          // Both upgrade and first-time explorer get the same gold message
+          showMessage('gg, you are now an explorer', AMBER);
         } else {
           // Normal waitlist
           showMessage("you are on the list");
         }
       } catch (err) {
-        btn.textContent = insiderUnlocked
-          ? (isUpgrade ? 'upgrade me' : 'I want in')
-          : 'notify me';
+        btn.textContent = explorerUnlocked ? 'explorer access' : 'notify me';
         btn.disabled = false;
         input.classList.add('invalid');
         emailError.textContent = 'oops, try again';
